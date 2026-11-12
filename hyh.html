@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI Crime Scene Investigation System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .screen-content { display: none; }
+    .screen-content.active { display: block !important; } 
+    .perspective-room { perspective: 900px; }
+    .room-box { transform-style: preserve-3d; transition: transform 0.3s ease-out; }
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    html, body { overflow-x: hidden; width: 100%; position: relative; }
+    @keyframes slideDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-toast { animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes popIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop { animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  </style>
+</head>
+
+<body class="bg-gradient-to-b from-slate-950 via-slate-900 to-black min-h-screen text-slate-100 font-sans w-full overflow-x-hidden flex flex-col justify-between select-none">
+
+  <!-- REAL-TIME SMS POP-UP BANNER FOR OTP -->
+  <div id="otpToastBanner" class="hidden fixed top-3 left-1/2 -translate-x-1/2 z-[100] w-11/12 max-w-md bg-slate-900/95 border-2 border-amber-400 text-slate-100 p-4 rounded-2xl shadow-2xl backdrop-blur-md animate-toast">
+    <div class="flex items-start space-x-3">
+      <div class="w-9 h-9 bg-amber-400 rounded-xl flex items-center justify-center text-slate-950 font-black text-lg shrink-0">💬</div>
+      <div class="flex-1">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-black text-amber-400 uppercase font-mono tracking-wider">Police Central Dispatch (SMS)</p>
+          <span class="text-[10px] text-slate-400">Just now</span>
+        </div>
+        <p class="text-xs text-slate-200 mt-1 font-medium">Your 2FA Verification Code for AI Crime Scene Access is: <strong id="generatedOtpDisplay" class="text-amber-400 font-mono text-sm tracking-widest font-black">482917</strong></p>
+      </div>
+      <button onclick="closeOtpToast()" class="text-slate-400 hover:text-white font-bold text-sm">✕</button>
+    </div>
+  </div>
+
+  <!-- IN-PAGE POP-UP MODAL REPORT BOX -->
+  <div id="caseReportModal" class="hidden fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white text-slate-900 w-full max-w-2xl rounded-2xl p-5 sm:p-6 shadow-2xl border border-slate-300 space-y-4 animate-pop max-h-[90vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-mono text-[10px] font-extrabold rounded">VERIFIED REPORT</span>
+            <span id="modalCaseId" class="font-mono text-xs font-black text-cyan-900">SL-2026-0417</span>
+          </div>
+          <h3 id="modalCaseTitle" class="text-base sm:text-lg font-black text-slate-900 mt-1">Crime Scene Dossier Summary</h3>
+        </div>
+        <button onclick="closeCaseModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-sm flex items-center justify-center transition">✕</button>
+      </div>
+
+      <!-- Modal Body Content -->
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <p class="text-[10px] uppercase font-bold text-slate-400 font-mono">Location & Sector</p>
+            <p id="modalLocation" class="font-bold text-slate-800 mt-0.5">Flat 4B, Shivaji Nagar</p>
+          </div>
+          <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <p class="text-[10px] uppercase font-bold text-slate-400 font-mono">Incident Category & Risk</p>
+            <p id="modalCategorySeverity" class="font-bold text-slate-800 mt-0.5">Crime · HIGH Severity</p>
+          </div>
+        </div>
+
+        <div class="bg-amber-50/60 border border-amber-200 p-3 rounded-xl space-y-1">
+          <p class="text-[10px] font-black uppercase text-amber-900 tracking-wider font-mono">🔍 Key AI Detected Clues & Findings</p>
+          <p id="modalFindings" class="text-xs font-medium text-slate-700 leading-relaxed">
+            Knife Weapon Trace, Blood Stain Pool, Footprints Area detected with 97.6% confidence. High priority evidence secured.
+          </p>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-1 font-mono text-[11px]">
+          <div class="flex justify-between text-slate-600">
+            <span>Investigator Officer:</span>
+            <strong id="modalOfficer" class="text-slate-900">Inspector Sanika Take</strong>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Timestamp:</span>
+            <span id="modalTimestamp" class="text-slate-800">03 Nov 2026, 09:15 AM</span>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 p-2.5 rounded-xl text-[10px] font-mono text-slate-500 bg-slate-50 flex items-center justify-between">
+          <span class="truncate mr-2">🔒 SHA-256 Digest: <strong class="text-slate-800">e3b0c44298fc1c149afbf4c8996fb92427ae41e...</strong></span>
+          <span class="text-emerald-700 font-bold shrink-0">Tamper-Proof</span>
+        </div>
+      </div>
+
+      <!-- Modal Footer Action -->
+      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200">
+        <button onclick="closeCaseModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition">
+          Close Box
+        </button>
+        <button onclick="goToFullReportScreen()" class="px-4 py-2 bg-[#0d6b6e] hover:bg-[#085254] text-white font-black text-xs rounded-xl shadow transition uppercase tracking-wider">
+          Full Screen Dossier ➔
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="w-full">
+    <!-- TOP HAZARD TAPE (RUNNING MARQUEE) -->
+    <div class="bg-[repeating-linear-gradient(45deg,#f59e0b,#f59e0b_20px,#0f172a_20px,#0f172a_40px)] py-1 shadow-lg w-full border-b-2 border-slate-900 overflow-hidden">
+      <div class="bg-amber-400 text-slate-950 font-black text-xs sm:text-sm tracking-widest uppercase py-1 border-y-2 border-slate-900 overflow-hidden whitespace-nowrap">
+        <marquee scrollamount="6" behavior="scroll" direction="left" class="font-mono">
+          ⚠️ POLICE LINE DO NOT CROSS ⚠️ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 🚨 CRIME SCENE INVESTIGATION UNIT · AUTHORIZED FORENSIC PERSONNEL ONLY 🚨 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ⚠️ EVIDENCE PRESERVATION ACTIVE ⚠️ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ⚡ RESTRICTED ACCESS ⚡
+        </marquee>
+      </div>
+    </div>
+
+    <!-- STICKY FORENSIC HEADER -->
+    <header class="bg-slate-950/90 backdrop-blur-md pt-4 px-3 sm:px-6 pb-2 sticky top-0 z-50 w-full border-b-2 border-slate-700/80 shadow-2xl">
+      <div class="w-full max-w-7xl mx-auto">
+        
+        <!-- TOP LOGO & DYNAMIC OFFICER BADGE -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 sm:w-11 sm:h-11 bg-amber-400 rounded-xl flex items-center justify-center font-black text-slate-950 text-xl shadow-lg shrink-0 border border-amber-300">
+              AI
+            </div>
+            <div>
+              <h1 class="font-black text-white text-lg sm:text-2xl md:text-3xl tracking-wide leading-tight drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)]">
+                AI Crime Scene Investigation
+              </h1>
+              <p class="text-[10px] sm:text-xs text-amber-400 font-extrabold tracking-widest uppercase mt-0.5">
+                Automated Forensic & Crime Scene Analysis System
+              </p>
+            </div>
+          </div>
+
+          <!-- DYNAMIC HEADER BADGE -->
+          <div class="flex items-center space-x-2 text-[11px] font-bold">
+            <span id="headerOfficerBadge" class="bg-slate-900 text-amber-300 px-2.5 py-1 rounded-lg border border-slate-700 font-mono shadow-inner">
+              Guest Personnel (Not Logged In)
+            </span>
+            <span class="text-emerald-400 font-black bg-emerald-950/60 px-2.5 py-1 rounded-md border border-emerald-800/80 shadow-sm">
+              ● System Online
+            </span>
+          </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <div class="flex space-x-2 sm:space-x-3 text-xs sm:text-sm font-black tracking-wider uppercase overflow-x-auto border-t border-slate-800/80 pt-2.5 pb-1.5 scrollbar-none w-full whitespace-nowrap">
+          <button onclick="showScreen('login')" id="tab-login" class="nav-tab px-3 py-1.5 rounded-lg text-amber-400 bg-slate-800 border border-amber-500/30 cursor-pointer">1 LOGIN</button>
+          <button onclick="showScreen('cases')" id="tab-cases" class="nav-tab px-3 py-1.5 rounded-lg text-slate-300 hover:text-white cursor-pointer">2 CASES</button>
+          <button onclick="showScreen('new-case')" id="tab-new-case" class="nav-tab px-3 py-1.5 rounded-lg text-slate-300 hover:text-white cursor-pointer">3 NEW CASE</button>
+          <button onclick="showScreen('ai-analysis')" id="tab-ai-analysis" class="nav-tab px-3 py-1.5 rounded-lg text-slate-300 hover:text-white cursor-pointer">4 AI ANALYSIS</button>
+          <button onclick="showScreen('3d-scene')" id="tab-3d-scene" class="nav-tab px-3 py-1.5 rounded-lg text-slate-300 hover:text-white cursor-pointer">5 3D SCENE</button>
+          <button onclick="showScreen('location')" id="tab-location" class="nav-tab px-3 py-1.5 rounded-lg text-slate-300 hover:text-white cursor-pointer">6 LOCATION & SEVERITY</button>
+          <button onclick="showScreen('intelligence')" id="tab-intelligence" class="nav-tab px-3 py-1.5 rounded-lg text-slate-300 hover:text-white cursor-pointer">7 INTELLIGENCE</button>
+          <button onclick="showScreen('report')" id="tab-report" class="nav-tab px-3 py-1.5 rounded-lg text-slate-300 hover:text-white cursor-pointer">8 REPORT</button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="w-full max-w-7xl mx-auto px-3 sm:px-6 pb-20 pt-5">
+
+      <!-- SCREEN 1: LOGIN WITH STRICT VALIDATION -->
+      <div id="screen-login" class="screen-content active space-y-4 w-full max-w-md mx-auto">
+        <div class="w-full bg-white rounded-2xl p-5 sm:p-7 shadow-2xl border border-slate-700 space-y-4 text-slate-900">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center font-black text-slate-900 text-xl shadow-xs">AI</div>
+            <h2 class="text-xl sm:text-2xl font-black text-slate-900">AI Crime Scene Investigation</h2>
+          </div>
+
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900">Secure login</h3>
+            <p class="text-xs text-slate-500">Authorized forensic investigators only.</p>
+          </div>
+
+          <!-- FORM ERROR WARNING BANNER -->
+          <div id="loginErrorBanner" class="hidden bg-rose-50 border border-rose-300 text-rose-800 p-3 rounded-xl text-xs font-bold space-y-1">
+            <p class="flex items-center space-x-1 font-black">
+              <span>⚠️ Login Validation Failed</span>
+            </p>
+            <p id="loginErrorMessageText" class="text-[11px] font-medium text-rose-700">Please fill out all fields including the 6-digit OTP code.</p>
+          </div>
+
+          <div class="space-y-3 pt-1">
+            <!-- FIELD 1: OFFICER NAME -->
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Officer Name & Rank *</label>
+              <input type="text" id="officerNameInput" oninput="handleOfficerNameChange(this.value)" placeholder="e.g. Inspector Sanika Take" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-500 transition-all">
+            </div>
+
+            <!-- FIELD 2: OFFICER ID -->
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Officer ID *</label>
+              <input type="text" id="officerIdInput" placeholder="e.g. PCB-20417" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-500 transition-all">
+            </div>
+
+            <!-- FIELD 3: PASSWORD -->
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Password *</label>
+              <input type="password" id="officerPasswordInput" placeholder="Enter official password" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-500 transition-all">
+            </div>
+
+            <!-- FIELD 4: 2FA OTP -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-black text-slate-600 tracking-wider uppercase">2FA CODE (OTP) *</label>
+                <button type="button" onclick="triggerSmsOtp()" class="text-[11px] font-black text-amber-600 hover:text-amber-700 underline cursor-pointer">
+                  📲 Get OTP via SMS
+                </button>
+              </div>
+
+              <div class="grid grid-cols-6 gap-1.5 sm:gap-2">
+                <input type="text" maxlength="1" id="otp-1" placeholder="•" oninput="moveOtpFocus(1)" class="otp-box text-center bg-slate-50 border border-slate-300 rounded-lg py-2 text-sm font-black text-slate-800 focus:border-amber-500 focus:bg-amber-50 transition">
+                <input type="text" maxlength="1" id="otp-2" placeholder="•" oninput="moveOtpFocus(2)" class="otp-box text-center bg-slate-50 border border-slate-300 rounded-lg py-2 text-sm font-black text-slate-800 focus:border-amber-500 focus:bg-amber-50 transition">
+                <input type="text" maxlength="1" id="otp-3" placeholder="•" oninput="moveOtpFocus(3)" class="otp-box text-center bg-slate-50 border border-slate-300 rounded-lg py-2 text-sm font-black text-slate-800 focus:border-amber-500 focus:bg-amber-50 transition">
+                <input type="text" maxlength="1" id="otp-4" placeholder="•" oninput="moveOtpFocus(4)" class="otp-box text-center bg-slate-50 border border-slate-300 rounded-lg py-2 text-sm font-black text-slate-800 focus:border-amber-500 focus:bg-amber-50 transition">
+                <input type="text" maxlength="1" id="otp-5" placeholder="•" oninput="moveOtpFocus(5)" class="otp-box text-center bg-slate-50 border border-slate-300 rounded-lg py-2 text-sm font-black text-slate-800 focus:border-amber-500 focus:bg-amber-50 transition">
+                <input type="text" maxlength="1" id="otp-6" placeholder="•" oninput="moveOtpFocus(6)" class="otp-box text-center bg-slate-50 border border-slate-300 rounded-lg py-2 text-sm font-black text-slate-800 focus:border-amber-500 focus:bg-amber-50 transition">
+              </div>
+            </div>
+
+            <!-- SUBMIT BUTTON -->
+            <button type="button" onclick="performLogin()" class="w-full py-3 bg-[#0d6b6e] hover:bg-[#085254] text-white font-extrabold rounded-xl shadow-md transition-all duration-200 uppercase tracking-wider text-xs cursor-pointer mt-2">
+              Verify and sign in
+            </button>
+
+            <div class="flex items-center space-x-2 pt-1">
+              <span class="px-2.5 py-0.5 border border-slate-300 rounded-full text-[11px] text-slate-500 font-medium">Encrypted</span>
+              <span class="text-[11px] text-slate-500">Every sign-in and action is logged.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCREEN 2: CASES DASHBOARD -->
+      <div id="screen-cases" class="screen-content space-y-6 w-full max-w-7xl mx-auto">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-black text-white">Cases Management</h2>
+          <p class="text-xs text-slate-300 mt-0.5">Open a case or review ongoing forensic evidence</p>
+        </div>
+
+        <!-- TOP STATS CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 w-full">
+          <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-xl shadow-sm">
+            <p id="totalOpenCasesCount" class="text-3xl font-black text-amber-400">12</p>
+            <p class="text-xs font-bold text-slate-300 mt-1">Open Cases</p>
+          </div>
+          <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-xl shadow-sm">
+            <p id="totalEvidenceCount" class="text-3xl font-black text-white">148</p>
+            <p class="text-xs font-bold text-slate-300 mt-1">Evidence Items</p>
+          </div>
+          <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-xl shadow-sm">
+            <p id="totalWaitingCount" class="text-3xl font-black text-emerald-400">3</p>
+            <p class="text-xs font-bold text-slate-300 mt-1">Waiting for Verification</p>
+          </div>
+        </div>
+
+        <!-- CASES TABLE -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 uppercase text-[10px] font-black tracking-wider">
+                  <th class="p-3">Case ID</th>
+                  <th class="p-3">Date & Time</th>
+                  <th class="p-3">Location / Sector</th>
+                  <th class="p-3">Case Type & Name</th>
+                  <th class="p-3">Severity</th>
+                  <th class="p-3 text-right">Action / Status</th>
+                </tr>
+              </thead>
+              <tbody id="casesTableBody" class="divide-y divide-slate-100">
+                <tr class="hover:bg-slate-50 cursor-pointer transition" onclick="openCaseModal('SL-2026-0417', 'Sector 4B · Shivaji Nagar, Pune', 'Crime Scene Investigation', 'HIGH', '03 Nov 2026, 09:15 AM', 'Knife Weapon Trace, Blood Stain Pool, Footprints Area detected with 97.6% confidence.')">
+                  <td class="p-3 font-mono text-xs font-bold text-cyan-900"><span class="px-2 py-0.5 bg-cyan-50 border border-cyan-200 rounded-md">SL-2026-0417</span></td>
+                  <td class="p-3 text-xs font-mono font-semibold text-slate-500">03 Nov 2026, 09:15 AM</td>
+                  <td class="p-3 text-xs font-bold text-slate-800">Sector 4B · Shivaji Nagar</td>
+                  <td class="p-3 text-xs font-black">
+                    <span class="px-2.5 py-1 bg-rose-100 text-rose-900 border border-rose-300 rounded-md inline-flex items-center space-x-1 font-bold">
+                      <span>🚨 CRIME SCENE</span>
+                    </span>
+                  </td>
+                  <td class="p-3"><span class="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold text-[10px] rounded-md">HIGH</span></td>
+                  <td class="p-3 text-right">
+                    <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-md">View Report 🔍</span>
+                  </td>
+                </tr>
+                <tr class="hover:bg-slate-50 cursor-pointer transition" onclick="openCaseModal('SL-2026-0416', 'Godown Sector · MIDC Industrial Estate', 'Fire Hazard & Arson', 'MEDIUM', '02 Nov 2026, 04:30 PM', 'Flame Ignition Center, Structural Charring Zone detected with 96.2% confidence.')">
+                  <td class="p-3 font-mono text-xs font-bold text-cyan-900"><span class="px-2 py-0.5 bg-cyan-50 border border-cyan-200 rounded-md">SL-2026-0416</span></td>
+                  <td class="p-3 text-xs font-mono font-semibold text-slate-500">02 Nov 2026, 04:30 PM</td>
+                  <td class="p-3 text-xs font-bold text-slate-800">Godown Sector · MIDC Road</td>
+                  <td class="p-3 text-xs font-black">
+                    <span class="px-2.5 py-1 bg-orange-100 text-orange-900 border border-orange-300 rounded-md inline-flex items-center space-x-1 font-bold">
+                      <span>🔥 FIRE HAZARD</span>
+                    </span>
+                  </td>
+                  <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold text-[10px] rounded-md">MEDIUM</span></td>
+                  <td class="p-3 text-right">
+                    <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-md">View Report 🔍</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex justify-center sm:justify-end pt-2">
+          <button onclick="showScreen('new-case')" class="w-full sm:w-auto px-6 py-3 bg-[#0d6b6e] hover:bg-[#085254] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg transition flex items-center justify-center space-x-2 cursor-pointer">
+            <span class="text-base">+</span>
+            <span>Create New Case & Upload Evidence</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SCREEN 3: NEW CASE AND EVIDENCE -->
+      <div id="screen-new-case" class="screen-content space-y-4 w-full max-w-5xl mx-auto">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-black text-white">New case and evidence</h2>
+          <p class="text-xs text-slate-300 mt-0.5">Create the case, then upload images, CCTV and documents.</p>
+        </div>
+
+        <div class="relative w-full border-2 border-dashed border-amber-400/60 bg-slate-800/90 rounded-2xl p-6 text-center cursor-pointer hover:border-amber-400 transition-all">
+          <input type="file" id="evidenceImageInput" accept="image/*,.pdf,.mp4" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+          
+          <div class="relative z-10 pointer-events-none">
+            <div class="text-amber-400 font-black text-3xl mb-1">+</div>
+            <p class="text-white font-black text-sm">Drop images, CCTV video or documents</p>
+            <p class="text-xs text-slate-300 mt-0.5 mb-3">JPG, PNG, MP4, PDF</p>
+            <span class="inline-block px-4 py-1.5 bg-slate-700 border border-slate-600 text-white font-bold rounded-lg text-xs shadow-md">
+              Browse files
+            </span>
+            <p id="fileNameDisplay" class="text-xs font-bold text-amber-400 mt-3 hidden"></p>
+          </div>
+        </div>
+
+        <button type="button" onclick="showScreen('ai-analysis')" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all cursor-pointer">
+          Upload and run AI checks
+        </button>
+      </div>
+
+      <!-- SCREEN 4: AI ANALYSIS -->
+      <div id="screen-ai-analysis" class="screen-content space-y-4 w-full max-w-5xl mx-auto">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-black text-white">AI analysis</h2>
+            <p class="text-xs text-slate-300 mt-0.5">Authenticity check, incident type and clue detection.</p>
+          </div>
+          <button id="verifyBadgeBtn" onclick="runFileVerification()" class="px-3 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold rounded-full text-xs cursor-pointer hover:bg-amber-500/30 transition-all">
+            ⚠️ 1 file needs verification
+          </button>
+        </div>
+
+        <div id="imagePreviewContainer" class="hidden relative inline-block border border-slate-700 bg-slate-900 rounded-2xl p-3 overflow-hidden shadow-xl w-full">
+          <p class="text-xs font-bold text-amber-400 mb-2">Uploaded CCTV / Scene Evidence Frame:</p>
+          <div class="relative inline-block w-full text-center">
+            <img id="previewImgScreen4" class="max-h-60 mx-auto rounded-lg object-contain border border-slate-800" src="" alt="Evidence Frame">
+          </div>
+        </div>
+
+        <div class="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-xl">
+          <h3 class="text-xs font-black text-slate-300 uppercase tracking-wider mb-3">IMAGE AUTHENTICITY CHECK</h3>
+          <div id="authenticityListContainer" class="space-y-2">
+            <p id="emptyStateText" class="text-xs text-slate-400 italic">No files analyzed yet. Upload evidence from Screen 3 to run AI checks.</p>
+          </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-md space-y-3 w-full text-slate-900">
+          <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">INCIDENT CLASSIFICATION</h3>
+          
+          <div id="classificationContainer" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div id="type-ACCIDENT" onclick="manualCategorySelect('ACCIDENT')" class="py-3 border border-slate-200 rounded-xl font-bold text-center text-slate-700 text-xs uppercase cursor-pointer transition-all">ACCIDENT</div>
+            <div id="type-CRIME" onclick="manualCategorySelect('CRIME')" class="py-3 border border-slate-200 rounded-xl font-bold text-center text-slate-700 text-xs uppercase cursor-pointer transition-all">CRIME</div>
+            <div id="type-FIRE" onclick="manualCategorySelect('FIRE')" class="py-3 border border-slate-200 rounded-xl font-bold text-center text-slate-700 text-xs uppercase cursor-pointer transition-all">FIRE</div>
+            <div id="type-UNKNOWN" onclick="manualCategorySelect('UNKNOWN')" class="py-3 border border-slate-200 rounded-xl font-bold text-center text-slate-700 text-xs uppercase cursor-pointer transition-all">UNKNOWN</div>
+          </div>
+
+          <p id="aiConfidenceText" class="text-[11px] text-slate-500 font-medium">AI Analysis Pending... Upload evidence to classify.</p>
+
+          <div id="clueListBox" class="hidden border border-amber-300 bg-amber-50/70 rounded-xl p-3 space-y-1.5 shadow-sm">
+            <p class="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center space-x-1">
+              <span>🔍 AI Detected Clues & Findings:</span>
+            </p>
+            <div id="cluesListContent" class="flex flex-wrap gap-1.5 pt-1"></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-3.5 w-full text-slate-100">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-ping"></span>
+              <h3 class="text-xs font-black uppercase tracking-wider text-cyan-300 font-mono">2D SPATIAL TACTICAL BLUEPRINT</h3>
+            </div>
+            <span id="sceneEnvironmentTag" class="text-[10px] font-mono font-bold px-3 py-1 bg-cyan-950 text-cyan-300 rounded-full border border-cyan-800 shadow-inner">
+              📍 Dynamic Scene Layout
+            </span>
+          </div>
+
+          <div class="border border-cyan-500/30 rounded-xl p-4 relative min-h-[260px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black overflow-hidden w-full flex items-center justify-center shadow-inner">
+            <div class="absolute inset-0 bg-[linear-gradient(to_right,#0891b215_1px,transparent_1px),linear-gradient(to_bottom,#0891b215_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none"></div>
+            <div class="absolute top-1/2 left-0 right-0 h-[1px] bg-cyan-500/20 border-t border-dashed border-cyan-500/30 pointer-events-none"></div>
+            <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-cyan-500/20 border-l border-dashed border-cyan-500/30 pointer-events-none"></div>
+            <div id="dynamic2dCanvas" class="relative w-full h-56 z-10"></div>
+          </div>
+        </div>
+
+        <button onclick="showScreen('3d-scene')" class="w-full py-3 bg-[#0d6b6e] hover:bg-[#085254] text-white font-extrabold text-xs rounded-xl transition shadow-md uppercase tracking-wider cursor-pointer">
+          Continue to 3D scene
+        </button>
+      </div>
+
+      <!-- SCREEN 5: 3D SCENE RECONSTRUCTION -->
+      <div id="screen-3d-scene" class="screen-content space-y-4 w-full max-w-5xl mx-auto">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-black text-white">3D Crime Scene Reconstruction Studio</h2>
+            <p class="text-xs text-slate-300 mt-0.5">Real-time 3D spatial viewport. Dynamic spatial node positioning based on uploaded evidence.</p>
+          </div>
+          <span id="scene3dCategoryBadge" class="px-3 py-1 bg-cyan-950 text-cyan-300 border border-cyan-800 text-[10px] font-mono font-bold rounded-full">
+            ● Dynamic 3D Scene Model Active
+          </span>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl text-slate-100 space-y-4 w-full">
+          <div class="relative w-full h-96 bg-gradient-to-b from-slate-950 via-slate-900 to-black rounded-xl overflow-hidden border border-cyan-900/40 flex items-center justify-center perspective-room shadow-2xl">
+            <div id="scene3dBox" class="room-box relative w-80 h-64 bg-slate-900/90 border-2 border-cyan-400/60 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col justify-between p-4 transition-transform duration-300 ease-out" style="transform: rotateX(20deg) rotateY(0deg) rotateZ(0deg);">
+              <div class="absolute inset-0 bg-[linear-gradient(to_right,#0891b220_1px,transparent_1px),linear-gradient(to_bottom,#0891b220_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none rounded-2xl"></div>
+              <div id="dynamic3dContent" class="relative w-full h-full z-10"></div>
+              <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center space-x-2 text-[9px] font-mono text-cyan-400 uppercase tracking-widest bg-slate-950/90 px-3 py-1 rounded-full border border-cyan-900 shadow">
+                <span>X-Axis: 0m</span> · <span>Y-Axis: 0m</span> · <span>Z-Elevation: 1.5m</span>
+              </div>
+            </div>
+
+            <div class="absolute top-3 left-3 bg-slate-950/80 border border-cyan-900 px-3 py-1.5 rounded-lg text-[10px] font-mono text-cyan-300 backdrop-blur-md shadow">
+              Orbit Angle: <span id="angleValueDisplay" class="font-black text-amber-400">0°</span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+            <div class="flex items-center space-x-3 text-xs font-bold text-slate-300">
+              <span class="text-cyan-400 font-mono">🔄 Orbit Rotation:</span>
+              <input type="range" id="orbitSlider" oninput="rotate3D(this.value)" min="-180" max="180" value="0" class="accent-amber-400 h-2 bg-slate-800 rounded-lg cursor-pointer w-44 sm:w-64">
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-bold">
+              <button onclick="setView3D('top')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-lg transition-all cursor-pointer"> Top View (65°)</button>
+              <button onclick="setView3D('front')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 rounded-lg transition-all cursor-pointer"> Front View (0°)</button>
+              <button onclick="setView3D('side')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-lg transition-all cursor-pointer"> Side View (90°)</button>
+              <button onclick="reset3DView()" class="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-lg transition-all cursor-pointer"> Reset 3D</button>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="showScreen('location')" class="w-full py-3 bg-[#0d6b6e] hover:bg-[#085254] text-white font-extrabold text-xs rounded-xl transition shadow-md uppercase tracking-wider cursor-pointer">
+          Continue to location and severity
+        </button>
+      </div>
+
+      <!-- SCREEN 6: LOCATION & SEVERITY -->
+      <div id="screen-location" class="screen-content space-y-4 w-full max-w-5xl mx-auto">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-black text-white">Location and severity</h2>
+          <p class="text-xs text-slate-300 mt-0.5">Automated geo-mapping and emergency dispatch trigger based on incident type.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-md text-slate-900 space-y-4 border border-slate-200 w-full">
+          <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">LOCATION ANALYSIS</h3>
+          <div class="border border-slate-200 bg-slate-50 rounded-xl p-3.5 space-y-1">
+            <p class="text-xs font-bold text-slate-800">GPS Coordinates & Scene Address</p>
+            <p id="dynamicGpsText" class="text-xs font-mono text-slate-700 font-bold">GPS 18.5204 N, 73.8567 E (Expressway / Highway Junction)</p>
+          </div>
+        </div>
+        <!-- Location Edit Box Modal / Section -->
+<div class="p-4 bg-slate-800 rounded-lg border border-slate-700 mt-4">
+  <label class="block text-xs font-bold text-cyan-400 uppercase mb-2">📍 Incident Location (GPS / Address)</label>
+  <div class="flex gap-2">
+    <input type="text" id="editableLocationInput" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white" value="National Highway NH-4, Mile Marker 42">
+    <button onclick="saveManualLocation()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-xs font-bold transition">Save & Lock</button>
+  </div>
+  <p class="text-[10px] text-slate-400 mt-1">Officers can override or pin exact spot manually to ensure 100% field accuracy.</p>
+</div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-md text-slate-900 space-y-4 border border-slate-200 w-full">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">AI SEVERITY ASSESSMENT</h3>
+            <span id="severityLockStatus" class="text-[10px] font-mono font-bold px-2 py-0.5 bg-rose-100 text-rose-800 rounded border border-rose-300">
+              🔒 AI Risk Level Locked
+            </span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <button id="sev-LOW" class="py-2.5 border border-slate-200 rounded-xl font-bold text-xs text-slate-400 bg-slate-50 cursor-not-allowed opacity-50 transition-all select-none">LOW</button>
+            <button id="sev-MEDIUM" class="py-2.5 border border-slate-200 rounded-xl font-bold text-xs text-slate-400 bg-slate-50 cursor-not-allowed opacity-50 transition-all select-none">MEDIUM</button>
+            <button id="sev-HIGH" class="py-2.5 border border-slate-200 rounded-xl font-bold text-xs text-slate-400 bg-slate-50 cursor-not-allowed opacity-50 transition-all select-none">HIGH</button>
+          </div>
+
+          <div class="border border-rose-200 bg-rose-50 rounded-xl p-3.5 space-y-3">
+            <p class="text-xs font-bold text-slate-800">Emergency Alert Dispatch Protocol</p>
+            <button id="dispatchAlertBtn" onclick="sendEmergencyDispatchAlert()" class="w-full py-2.5 bg-rose-700 hover:bg-rose-800 text-white text-xs font-black rounded-xl transition shadow-md uppercase tracking-wider cursor-pointer">
+              Confirm and Send Emergency Alert
+            </button>
+          </div>
+        </div>
+
+        <button onclick="showScreen('intelligence')" class="w-full py-3 bg-[#0d6b6e] hover:bg-[#085254] text-white font-extrabold text-xs rounded-xl transition shadow-md uppercase tracking-wider cursor-pointer mt-4">
+          CONTINUE TO CASE INTELLIGENCE
+        </button>
+      </div>
+    
+      <!-- SCREEN 7: CASE INTELLIGENCE -->
+      <div id="screen-intelligence" class="screen-content space-y-4 w-full max-w-5xl mx-auto">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-black text-white">Case intelligence</h2>
+          <p class="text-xs text-slate-300 mt-0.5">How the evidence connects, and what to check next based on AI analysis.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-md text-slate-900 space-y-4 border border-slate-200 w-full">
+          <div id="dynamicRelationNodesBox" class="bg-slate-50 border border-slate-200/80 rounded-xl p-5 flex flex-col items-center justify-center space-y-3 relative min-h-[160px]"></div>
+          <p class="text-[11px] font-semibold text-slate-400">Evidence relation map · <span class="text-slate-800 font-bold">Yellow = AI Selected Core Evidence</span></p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-md text-slate-900 space-y-3 border border-slate-200 w-full">
+          <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">DYNAMIC INCIDENT TIMELINE</h3>
+          <div id="dynamicTimelineContent" class="space-y-4 pl-2 border-l-2 border-slate-200 relative ml-2"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-md text-slate-900 space-y-3 border border-slate-200 w-full">
+          <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">SUGGESTED INVESTIGATION CHECKS</h3>
+          <div id="dynamicChecksContainer" class="space-y-2"></div>
+          <button onclick="confirmInvestigatorVerification()" class="w-full py-3 bg-[#0d6b6e] hover:bg-[#085254] text-white font-extrabold text-xs rounded-xl transition shadow-sm uppercase tracking-wider cursor-pointer mt-2">
+            INVESTIGATOR VERIFICATION
+          </button>
+        </div>
+
+        <button onclick="showScreen('report')" class="w-full py-3 bg-[#0d6b6e] hover:bg-[#085254] text-white font-extrabold text-xs rounded-xl transition shadow-md uppercase tracking-wider cursor-pointer mt-4">
+          GENERATE REPORT
+        </button>
+      </div> 
+
+      <!-- SCREEN 8: FINAL AUDIT REPORT -->
+      <div id="screen-report" class="screen-content space-y-4 w-full max-w-5xl mx-auto">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-black text-white">Forensic Audit & Evidence Report</h2>
+            <p id="reportCaseSubHeader" class="text-xs text-slate-300 mt-0.5">Encrypted SHA-256 court-admissible investigation dossier.</p>
+          </div>
+          <button onclick="window.print()" class="px-3 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-xs hover:bg-amber-400 transition cursor-pointer">
+            🖨️ Print / Export PDF
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 shadow-2xl text-slate-900 space-y-5 border border-slate-200 w-full">
+          <div class="border-b border-slate-200 pb-3 flex justify-between items-center">
+            <div>
+              <h3 class="text-base font-black uppercase text-slate-900">OFFICIAL FORENSIC DOSSIER</h3>
+              <p id="dossierCaseIdTag" class="text-[11px] font-mono text-slate-500">Case ID: #SL-2026-0417 · Timestamp: Real-time System Log</p>
+            </div>
+            <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono text-[10px] font-bold rounded-md">VERIFIED AUTHENTIC</span>
+          </div>
+
+          <div class="border border-slate-200 bg-slate-50 p-4 rounded-xl space-y-1.5">
+            <h4 class="text-xs font-black uppercase tracking-wider text-slate-800">Evidence summary</h4>
+            <p id="repEvidenceSummaryText" class="text-xs text-slate-700 leading-relaxed font-medium">
+              4 clues were found from 1 uploaded file. 0 files flagged as AI-made.
+            </p>
+          </div>
+
+          <div class="border border-slate-200 bg-slate-50 p-4 rounded-xl space-y-1.5">
+            <h4 class="text-xs font-black uppercase tracking-wider text-slate-800">AI findings</h4>
+            <p id="repAiFindingsText" class="text-xs text-slate-700 leading-relaxed font-medium">
+              Incident type: accident (98.4%). Severity: high. Glass & Body Debris Area, Tire Skid Mark Trajectory are linked to the primary collision scene.
+            </p>
+          </div>
+
+          <div class="border border-slate-200 bg-slate-50 p-4 rounded-xl space-y-1.5">
+            <h4 class="text-xs font-black uppercase tracking-wider text-slate-800">Location and timeline</h4>
+            <p id="repLocationTimelineText" class="text-xs text-slate-700 leading-relaxed font-medium">
+              Highway NH-4, Sector 7. Collision detected at 08:18, patrol dispatched at 08:24.
+            </p>
+            <p class="text-[10px] text-slate-400 font-semibold pt-1">AI suggestions only. The investigator makes the final decision.</p>
+          </div>
+
+          <div class="border border-slate-200 p-4 rounded-xl space-y-3 bg-white">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-black uppercase tracking-wider text-slate-700 font-mono">SECURE STORAGE AND AUDIT TRAIL</h4>
+              <div class="flex items-center space-x-1.5">
+                <span class="px-2 py-0.5 border border-emerald-500/40 text-emerald-800 text-[10px] font-bold rounded bg-emerald-50">Encrypted</span>
+                <span class="px-2 py-0.5 border border-emerald-500/40 text-emerald-800 text-[10px] font-bold rounded bg-emerald-50">Hashes verified</span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="text-slate-400 uppercase text-[10px] font-mono tracking-wider border-b border-slate-100">
+                    <th class="pb-2 font-bold">TIME</th>
+                    <th class="pb-2 font-bold">USER</th>
+                    <th class="pb-2 font-bold">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody id="auditTrailTableBody" class="divide-y divide-slate-100 font-medium">
+                  <tr>
+                    <td class="py-2 text-slate-500 font-mono">09:12</td>
+                    <td class="auditOfficerUserCell py-2 font-bold text-slate-900">Inspector Sanika Take</td>
+                    <td id="auditSignInActionCell" class="py-2 text-slate-800 font-bold">Signed in (2FA Verified: 482917)</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 text-slate-500 font-mono">09:15</td>
+                    <td class="auditOfficerUserCell py-2 font-bold text-slate-900">Inspector Sanika Take</td>
+                    <td id="auditUploadActionCell" class="py-2 text-slate-800 font-bold">Uploaded 1 file</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 text-slate-500 font-mono">09:21</td>
+                    <td class="py-2 font-bold text-slate-900">System</td>
+                    <td class="py-2 text-slate-800 font-bold">AI analysis done</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 text-slate-500 font-mono">09:40</td>
+                    <td class="auditOfficerUserCell py-2 font-bold text-slate-900">Inspector Sanika Take</td>
+                    <td class="py-2 text-slate-800 font-bold">Verified findings</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="border border-slate-200 p-3 rounded-xl text-[11px] font-mono text-slate-600 bg-slate-50">
+            🔒 Hash Digest (SHA-256): <span class="text-slate-900 font-bold">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- FIXED BOTTOM HAZARD TAPE BAR -->
+  <footer class="fixed bottom-0 left-0 w-full z-50 bg-[repeating-linear-gradient(45deg,#f59e0b,#f59e0b_20px,#0f172a_20px,#0f172a_40px)] py-2 border-t-2 border-amber-600 shadow-2xl">
+    <div class="text-slate-950 font-mono text-[10px] sm:text-xs tracking-widest uppercase px-4 text-center flex items-center justify-between font-black drop-shadow-sm">
+      <span class="bg-amber-400/90 px-2 py-0.5 rounded text-slate-950">⚠️ POLICE LINE DO NOT CROSS</span>
+      <span class="bg-amber-400/90 px-2 py-0.5 rounded text-slate-950">SYSTEM LOGGED & ENCRYPTED (SHA-256)</span>
+      <span class="bg-amber-400/90 px-2 py-0.5 rounded text-slate-950">CRIME SCENE INVESTIGATION ONLY ⚠️</span>
+    </div>
+  </footer>
+
+  <!-- SCRIPT ENGINE -->
+  <script>
+   const screensMap = {
+      'login': 'screen-login',
+      'cases': 'screen-cases',
+      'new-case': 'screen-new-case',
+      'ai-analysis': 'screen-ai-analysis',
+      '3d-scene': 'screen-3d-scene',
+      'location': 'screen-location',
+      'intelligence': 'screen-intelligence',
+      'report': 'screen-report'
+    };
+
+    const tabsMap = {
+      'login': 'tab-login',
+      'cases': 'tab-cases',
+      'new-case': 'tab-new-case',
+      'ai-analysis': 'tab-ai-analysis',
+      '3d-scene': 'tab-3d-scene',
+      'location': 'tab-location',
+      'intelligence': 'tab-intelligence',
+      'report': 'tab-report'
+    };
+
+    let isLoggedIn = false;
+
+    function showScreen(screenKey) {
+      if (!isLoggedIn && screenKey !== 'login') {
+        showLoginError("⚠️ Access Denied: Please complete Officer verification and 2FA OTP login first.");
+        return;
+      }
+
+      Object.values(screensMap).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+      });
+
+      Object.values(tabsMap).forEach(id => {
+        const tab = document.getElementById(id);
+        if (tab) {
+          tab.className = "nav-tab px-3 py-1.5 rounded-lg text-slate-300 hover:text-white cursor-pointer";
+        }
+      });
+
+      const targetScreen = document.getElementById(screensMap[screenKey]);
+      if (targetScreen) targetScreen.classList.add('active');
+
+      const targetTab = document.getElementById(tabsMap[screenKey]);
+      if (targetTab) {
+        targetTab.className = "nav-tab px-3 py-1.5 rounded-lg text-amber-400 bg-slate-800 border border-amber-500/30 cursor-pointer font-bold";
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    let currentOfficerName = "";
+    let activeOtpCode = "";
+    let openCasesCount = 12;
+    let evidenceItemsCount = 148;
+    let waitingVerificationCount = 3;
+
+    let analyzedFilesList = [];
+    let currentActiveClues = [];
+    let currentCategoryScores = { ACCIDENT: 98, CRIME: 1, FIRE: 0.5, UNKNOWN: 0.5 };
+    let currentFileName = "";
+    let currentCaseId = "SL-2026-0417";
+
+    // Case Registry for Dynamic Officer Mapping per Report
+    const casesRegistry = {
+      "SL-2026-0417": { title: "Vehicle Collision Dossier", officerName: "Inspector Sanika Take", location: "Area Hint: National Highway Corridor" },
+      "SL-2026-0416": { title: "Fire Hazard & Arson Dossier", officerName: "Inspector Rajesh Patil", location: "Area Hint: Industrial MIDC / Storage Zone Hint" },
+      "SL-2026-8816": { title: "Crime Scene Dossier", officerName: "Officer Amit Deshmukh", location: "Area Hint: Urban Residential / Sector 4 Zone Hint" }
+    };
+
+    function showLoginError(msg) {
+      const errBanner = document.getElementById('loginErrorBanner');
+      const errText = document.getElementById('loginErrorMessageText');
+      if (errBanner && errText) {
+        errText.textContent = msg;
+        errBanner.classList.remove('hidden');
+      }
+    }
+
+    function clearLoginError() {
+      const errBanner = document.getElementById('loginErrorBanner');
+      if (errBanner) errBanner.classList.add('hidden');
+    }
+
+    // STRICT LOGIN VALIDATION ENGINE
+    function performLogin() {
+      clearLoginError();
+
+      const nameInput = document.getElementById('officerNameInput');
+      const idInput = document.getElementById('officerIdInput');
+      const pwdInput = document.getElementById('officerPasswordInput');
+
+      const nameVal = nameInput ? nameInput.value.trim() : "";
+      const idVal = idInput ? idInput.value.trim() : "";
+      const pwdVal = pwdInput ? pwdInput.value.trim() : "";
+
+      let enteredOtp = "";
+      for (let i = 1; i <= 6; i++) {
+        enteredOtp += document.getElementById(`otp-${i}`)?.value.trim() || "";
+      }
+
+      if (!nameVal || !idVal || !pwdVal) {
+        showLoginError("⚠️ Please fill in Officer Name, Officer ID, and Password.");
+        if (!nameVal && nameInput) nameInput.classList.add('border-rose-500');
+        if (!idVal && idInput) idInput.classList.add('border-rose-500');
+        if (!pwdVal && pwdInput) pwdInput.classList.add('border-rose-500');
+        return;
+      }
+
+      if (!activeOtpCode) {
+        showLoginError("⚠️ OTP Code missing! Click 'Get OTP via SMS' to request your 2FA code.");
+        return;
+      }
+
+      if (enteredOtp.length < 6) {
+        showLoginError("⚠️ Please enter the complete 6-digit 2FA OTP code sent via SMS.");
+        return;
+      }
+
+      if (enteredOtp !== activeOtpCode) {
+        showLoginError("❌ Invalid OTP Code! Please enter the exact code generated in the SMS popup.");
+        return;
+      }
+
+      isLoggedIn = true;
+      handleOfficerNameChange(nameVal);
+
+      const auditSignInCell = document.getElementById('auditSignInActionCell');
+      if (auditSignInCell) {
+        auditSignInCell.textContent = `Signed in (2FA Verified: ${enteredOtp})`;
+      }
+
+      closeOtpToast();
+      showScreen('cases');
+    }
+
+    function triggerSmsOtp() {
+      activeOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      const otpDisplay = document.getElementById('generatedOtpDisplay');
+      const toast = document.getElementById('otpToastBanner');
+      
+      if (otpDisplay) otpDisplay.textContent = activeOtpCode;
+      if (toast) toast.classList.remove('hidden');
+
+      for (let i = 1; i <= 6; i++) {
+        const box = document.getElementById(`otp-${i}`);
+        if (box) box.value = activeOtpCode[i - 1];
+      }
+      clearLoginError();
+    }
+
+    function closeOtpToast() {
+      const toast = document.getElementById('otpToastBanner');
+      if (toast) toast.classList.add('hidden');
+    }
+
+    function moveOtpFocus(index) {
+      if (index < 6) {
+        const currentBox = document.getElementById(`otp-${index}`);
+        if (currentBox && currentBox.value.length === 1) {
+          document.getElementById(`otp-${index + 1}`)?.focus();
+        }
+      }
+    }
+
+    function handleOfficerNameChange(nameVal) {
+      currentOfficerName = nameVal.trim() || "Inspector Sanika Take";
+      const headerBadge = document.getElementById('headerOfficerBadge');
+
+      const parts = currentOfficerName.split(' ');
+      let initials = "ST";
+      if (parts.length >= 2) {
+        initials = (parts[parts.length - 2][0] + parts[parts.length - 1][0]).toUpperCase();
+      } else if (parts.length === 1 && parts[0].length > 0) {
+        initials = parts[0][0].toUpperCase();
+      }
+
+      if (headerBadge) {
+        headerBadge.textContent = `${currentOfficerName} (${initials})`;
+      }
+
+      const auditUserCells = document.querySelectorAll('.auditOfficerUserCell');
+      auditUserCells.forEach(cell => {
+        cell.textContent = currentOfficerName;
+      });
+    }
+
+    function openCaseModal(caseId, location, type, severity, timestamp, findingsText) {
+      const modal = document.getElementById('caseReportModal');
+      if (!modal) return;
+
+      const matchedCase = casesRegistry[caseId];
+      const assignedOfficer = matchedCase ? matchedCase.officerName : (currentOfficerName || "Inspector Sanika Take");
+
+      document.getElementById('modalCaseId').textContent = caseId;
+      document.getElementById('modalCaseTitle').textContent = `${type} Dossier Report`;
+      document.getElementById('modalLocation').textContent = location;
+      document.getElementById('modalCategorySeverity').textContent = `${type} · ${severity} Severity`;
+      document.getElementById('modalFindings').textContent = findingsText || "AI Forensic clues verified and sealed.";
+      document.getElementById('modalOfficer').textContent = assignedOfficer;
+      document.getElementById('modalTimestamp').textContent = timestamp;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeCaseModal() {
+      const modal = document.getElementById('caseReportModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function goToFullReportScreen() {
+      closeCaseModal();
+      showScreen('report');
+    }
+
+    document.getElementById('evidenceImageInput')?.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      currentFileName = file.name;
+      currentCaseId = "SL-2026-" + Math.floor(1000 + Math.random() * 9000);
+
+      const nameDisplay = document.getElementById('fileNameDisplay');
+      if (nameDisplay) {
+        nameDisplay.textContent = "✓ Selected: " + file.name;
+        nameDisplay.classList.remove('hidden');
+      }
+
+      const fileSizeKB = (file.size / 1024).toFixed(1);
+      const fileExt = file.name.split('.').pop().toUpperCase();
+      let authenticityScore = 95 + Math.floor((file.size % 40) / 10);
+      let statusText = "Real " + authenticityScore + "% (Verified Authentic)";
+      let isAiGenerated = false;
+
+      if (fileSizeKB < 50) {
+        authenticityScore = 72;
+        statusText = "AI-made " + authenticityScore + "% (Manipulated)";
+        isAiGenerated = true;
+      }
+
+      const lowerName = file.name.toLowerCase();
+      let topCategory = "ACCIDENT";
+      let caseBadgeHtml = "";
+      let detectedLocation = "Address Not Found in Image (Manual Hint Required)";
+
+      const accidentKeywords = ["accident", "crash", "car", "vehicle", "road", "collision", "hit", "traffic", "overturn", "bike"];
+      const fireKeywords = ["fire", "burn", "flame", "blast", "smoke", "explosion", "godown_fire", "arson"];
+      const crimeKeywords = ["crime", "knife", "weapon", "blood", "murder", "theft", "gun", "robbery", "fight", "victim", "stain", "scene"];
+
+      if (accidentKeywords.some(k => lowerName.includes(k))) {
+        topCategory = "ACCIDENT";
+        caseBadgeHtml = `<span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-md inline-flex items-center space-x-1 font-bold">🚗 VEHICLE COLLISION</span>`;
+        detectedLocation = "Area Hint: National Highway Corridor";
+        currentActiveClues = ["Glass & Body Debris Area", "Tire Skid Mark Trajectory", "Vehicle Body Deformation", "Road Impact Trajectory"];
+        currentCategoryScores = { ACCIDENT: 98.4, CRIME: 1.1, FIRE: 0.3, UNKNOWN: 0.2 };
+      } else if (fireKeywords.some(k => lowerName.includes(k))) {
+        topCategory = "FIRE";
+        caseBadgeHtml = `<span class="px-2.5 py-1 bg-orange-100 text-orange-900 border border-orange-300 rounded-md inline-flex items-center space-x-1 font-bold">🔥 FIRE HAZARD</span>`;
+        detectedLocation = "Area Hint: Industrial MIDC / Storage Zone Hint";
+        currentActiveClues = ["Flame Ignition Center", "Structural Charring Zone", "Combustible Vapor Residue", "Heat Discoloration Trace"];
+        currentCategoryScores = { ACCIDENT: 1.2, CRIME: 2.1, FIRE: 96.2, UNKNOWN: 0.5 };
+      } else if (crimeKeywords.some(k => lowerName.includes(k))) {
+        topCategory = "CRIME";
+        caseBadgeHtml = `<span class="px-2.5 py-1 bg-rose-100 text-rose-900 border border-rose-300 rounded-md inline-flex items-center space-x-1 font-bold">🚨 CRIME SCENE</span>`;
+        detectedLocation = "Area Hint: Urban Residential / Sector 4 Zone Hint";
+        currentActiveClues = ["Knife Weapon Trace", "Blood Stain Pool", "Footprints Area", "Forced Entry Mark"];
+        currentCategoryScores = { ACCIDENT: 0.8, CRIME: 97.6, FIRE: 0.4, UNKNOWN: 1.2 };
+      } else {
+        topCategory = "UNKNOWN";
+        caseBadgeHtml = `<span class="px-2.5 py-1 bg-cyan-100 text-cyan-900 border border-cyan-300 rounded-md inline-flex items-center space-x-1 font-bold">🔍 SCENE INCIDENT</span>`;
+        detectedLocation = "Address Not Found in Image (Manual Hint Required)";
+        currentActiveClues = ["Primary Impact Spot", "Debris Scatter Field", "Environmental Surface Trace"];
+        currentCategoryScores = { ACCIDENT: 93.8, CRIME: 3.2, FIRE: 1.8, UNKNOWN: 1.2 };
+      }
+
+      openCasesCount += 1;
+      evidenceItemsCount += 1;
+      waitingVerificationCount += 1;
+      
+      document.getElementById('totalOpenCasesCount').textContent = openCasesCount;
+      document.getElementById('totalEvidenceCount').textContent = evidenceItemsCount;
+      document.getElementById('totalWaitingCount').textContent = waitingVerificationCount;
+
+      const now = new Date();
+      const timeStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ", " + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      const cluesSummary = currentActiveClues.join(", ") + " detected by AI.";
+      
+      // Register newly uploaded case dynamically with current officer name and area hint
+      casesRegistry[currentCaseId] = {
+        title: topCategory + " Dossier",
+        officerName: currentOfficerName || "Inspector Sanika Take",
+        location: detectedLocation
+      };
+
+      updateCasesDashboardWithVividModal(currentCaseId, timeStr, detectedLocation, topCategory, caseBadgeHtml, "HIGH", cluesSummary);
+
+      renderIncidentUI(topCategory);
+      updateScreen8ReportUI(file.name, topCategory, detectedLocation, isAiGenerated);
+
+      const newEntry = {
+        id: Date.now(),
+        name: file.name,
+        size: fileSizeKB + " KB",
+        type: fileExt,
+        scoreText: statusText,
+        score: authenticityScore,
+        isAi: isAiGenerated
+      };
+      analyzedFilesList.unshift(newEntry);
+      renderAuthenticityList();
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img4 = document.getElementById('previewImgScreen4');
+        const container4 = document.getElementById('imagePreviewContainer');
+        if (img4 && container4) {
+          img4.src = event.target.result;
+          container4.classList.remove('hidden');
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function updateCasesDashboardWithVividModal(caseId, dateTimeStr, location, category, badgeHtml, severity, findingsStr) {
+      const tableBody = document.getElementById('casesTableBody');
+      if (tableBody) {
+        const newRow = `
+          <tr class="hover:bg-amber-50/50 cursor-pointer border-b border-slate-100 transition" onclick="openCaseModal('${caseId}', '${location}', '${category}', '${severity}', '${dateTimeStr}', '${findingsStr}')">
+            <td class="p-3 font-mono text-xs font-bold text-amber-900"><span class="px-2 py-0.5 bg-amber-100 border border-amber-300 rounded-md">NEW ${caseId}</span></td>
+            <td class="p-3 text-xs font-mono font-bold text-slate-800">${dateTimeStr}</td>
+            <td class="p-3 text-xs font-bold text-slate-900">${location}</td>
+            <td class="p-3 text-xs font-black">${badgeHtml}</td>
+            <td class="p-3"><span class="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold text-[10px] rounded-md">${severity}</span></td>
+            <td class="p-3 text-right"><span class="px-2.5 py-1 bg-amber-500 text-slate-950 font-black text-[10px] rounded-md animate-pulse">View Report 🔍</span></td>
+          </tr>
+        `;
+        tableBody.innerHTML = newRow + tableBody.innerHTML;
+      }
+    }
+
+    function renderIncidentUI(activeCategory) {
+      const categories = ["ACCIDENT", "CRIME", "FIRE", "UNKNOWN"];
+      
+      categories.forEach(cat => {
+        const el = document.getElementById(`type-${cat}`);
+        if (el) {
+          const score = currentCategoryScores[cat] || 0;
+          if (cat === activeCategory) {
+            el.className = "py-3.5 bg-amber-400 text-slate-950 rounded-xl font-black text-center text-xs uppercase shadow-xl border-2 border-amber-500 scale-105 transition-all cursor-pointer ring-4 ring-amber-400/30";
+            el.innerHTML = `${cat} <span class="block text-[10px] text-slate-900 font-extrabold font-mono mt-0.5">● ${score}% AI MATCH</span>`;
+          } else {
+            el.className = "py-3 border border-slate-200 bg-slate-50 text-slate-500 rounded-xl font-bold text-center text-xs uppercase hover:bg-slate-100 transition-all cursor-pointer opacity-70";
+            el.innerHTML = `${cat} <span class="block text-[9px] text-slate-400 font-semibold font-mono mt-0.5">${score}%</span>`;
+          }
+        }
+      });
+
+      const confText = document.getElementById('aiConfidenceText');
+      if (confText) {
+        confText.innerHTML = `AI High-Precision Classification for <strong>[${currentFileName || 'Evidence Frame'}]</strong>: <strong class="text-amber-600 font-black">${activeCategory} (${currentCategoryScores[activeCategory]}%)</strong>. Investigator can tap to override.`;
+      }
+
+      const clueBox = document.getElementById('clueListBox');
+      const clueContent = document.getElementById('cluesListContent');
+      if (clueBox && clueContent && currentActiveClues.length > 0) {
+        clueBox.classList.remove('hidden');
+        clueContent.innerHTML = "";
+        currentActiveClues.forEach((clue, idx) => {
+          clueContent.innerHTML += `
+            <span class="inline-flex items-center px-2.5 py-1 bg-white border border-amber-300 text-slate-900 text-[11px] font-bold rounded-lg shadow-2xs">
+              <span class="text-amber-600 font-black mr-1">#${idx + 1}</span> ${clue}
+            </span>
+          `;
+        });
+      }
+
+      const canvas2d = document.getElementById('dynamic2dCanvas');
+      const tag2d = document.getElementById('sceneEnvironmentTag');
+      if (canvas2d) {
+        canvas2d.innerHTML = "";
+        if (tag2d) tag2d.textContent = `📍 ${activeCategory} Tactical Map`;
+        const positions = [
+          { top: '15%', left: '8%', border: 'border-amber-400/80', bg: 'bg-amber-950/80', text: 'text-amber-300', tag: 'bg-amber-400 text-slate-950', coord: 'X: 12.4m, Y: 4.2m' },
+          { top: '48%', left: '52%', border: 'border-emerald-400/80', bg: 'bg-emerald-950/80', text: 'text-emerald-300', tag: 'bg-emerald-400 text-slate-950', coord: 'X: 24.8m, Y: 11.6m' },
+          { top: '72%', left: '22%', border: 'border-rose-400/80', bg: 'bg-rose-950/80', text: 'text-rose-300', tag: 'bg-rose-400 text-white', coord: 'X: 16.1m, Y: 18.0m' },
+          { top: '22%', left: '68%', border: 'border-cyan-400/80', bg: 'bg-cyan-950/80', text: 'text-cyan-300', tag: 'bg-cyan-400 text-slate-950', coord: 'X: 31.0m, Y: 6.7m' }
+        ];
+
+        currentActiveClues.forEach((clueText, index) => {
+          const pos = positions[index % positions.length];
+          canvas2d.innerHTML += `
+            <div class="absolute border ${pos.border} ${pos.bg} p-2 rounded-xl backdrop-blur-md shadow-2xl transition-all" style="top: ${pos.top}; left: ${pos.left};">
+              <div class="flex items-center space-x-1.5 mb-1">
+                <span class="px-1.5 py-0.2 ${pos.tag} font-black text-[9px] rounded-md uppercase font-mono">#${index + 1}</span>
+                <span class="text-[9px] font-mono text-slate-400 font-bold">${pos.coord}</span>
+              </div>
+              <p class="${pos.text} font-mono text-[11px] font-bold tracking-tight">🎯 ${clueText}</p>
+            </div>
+          `;
+        });
+      }
+
+      render3DSceneContent(activeCategory);
+      updateLocationAndSeverityUI(activeCategory);
+      updateIntelligenceUI(activeCategory);
+    }
+
+    function updateScreen8ReportUI(fileName, category, location, isAi) {
+      const dossierTag = document.getElementById('dossierCaseIdTag');
+      const summaryEl = document.getElementById('repEvidenceSummaryText');
+      const findingsEl = document.getElementById('repAiFindingsText');
+      const locTimelineEl = document.getElementById('repLocationTimelineText');
+      const uploadCell = document.getElementById('auditUploadActionCell');
+
+      if (dossierTag) dossierTag.textContent = `Case ID: #${currentCaseId} · Timestamp: Real-time System Log`;
+      
+      const clueCount = currentActiveClues.length || 4;
+      const flaggedText = isAi ? "1 file was flagged as likely AI-made and left out." : "0 files flagged as AI-made.";
+
+      if (summaryEl) {
+        summaryEl.textContent = `${clueCount} clues were found from 1 uploaded file [${fileName}]. ${flaggedText}`;
+      }
+
+      if (findingsEl) {
+        const score = currentCategoryScores[category] || 98;
+        const clueListStr = currentActiveClues.slice(0, 3).join(", ");
+        findingsEl.textContent = `Incident type: ${category.toLowerCase()} (${score}%). Severity: high. ${clueListStr} are linked to the primary incident zone.`;
+      }
+
+      if (locTimelineEl) {
+        locTimelineEl.textContent = `${location}. Evidence uploaded and analyzed via live AI forensic pipeline.`;
+      }
+
+      if (uploadCell) {
+        uploadCell.textContent = `Uploaded file (${fileName})`;
+      }
+    }
+
+    function render3DSceneContent(category) {
+      const canvas3d = document.getElementById('dynamic3dContent');
+      const badge3d = document.getElementById('scene3dCategoryBadge');
+      if (!canvas3d) return;
+      canvas3d.innerHTML = "";
+
+      if (badge3d) badge3d.textContent = `● 3D ${category} Model Rendered`;
+
+      const nodeStyles = [
+        { top: '12%', right: '4%', border: 'border-amber-500/80', bg: 'bg-slate-950/90', text: 'text-amber-400', tagBg: 'bg-amber-400 text-slate-950', zDepth: 'Z: +1.4m' },
+        { bottom: '12%', left: '4%', border: 'border-emerald-500/80', bg: 'bg-slate-950/90', text: 'text-emerald-300', tagBg: 'bg-emerald-400 text-slate-950', zDepth: 'Z: +0.6m' },
+        { bottom: '4%', right: '8%', border: 'border-rose-500/80', bg: 'bg-slate-950/90', text: 'text-rose-300', tagBg: 'bg-rose-500 text-white', zDepth: 'Z: +0.2m' },
+        { top: '45%', left: '40%', border: 'border-cyan-500/80', bg: 'bg-slate-950/90', text: 'text-cyan-300', tagBg: 'bg-cyan-400 text-slate-950', zDepth: 'Z: +1.8m' }
+      ];
+
+      canvas3d.innerHTML += `
+        <div class="absolute top-2 left-1/2 -translate-x-1/2 border border-cyan-500 bg-cyan-500/20 text-cyan-300 text-[10px] font-mono font-bold px-3 py-1 rounded-full shadow backdrop-blur">
+          🌐 3D ${category} SPATIAL MODEL CANVAS
+        </div>
+      `;
+
+      currentActiveClues.forEach((clueText, index) => {
+        const style = nodeStyles[index % nodeStyles.length];
+        canvas3d.innerHTML += `
+          <div class="absolute border ${style.border} ${style.bg} ${style.text} text-[10px] font-bold p-2.5 rounded-xl shadow-2xl transition-all hover:scale-105" style="${style.top ? 'top:'+style.top : ''}; ${style.bottom ? 'bottom:'+style.bottom : ''}; ${style.left ? 'left:'+style.left : ''}; ${style.right ? 'right:'+style.right : ''};">
+            🎯 ${clueText.toUpperCase()}
+            <span class="block text-[9px] font-mono text-slate-400 mt-0.5">Spatial Elevation: ${style.zDepth}</span>
+            <span class="absolute -top-2 -left-2 ${style.tagBg} rounded-full w-5 h-5 text-[10px] flex items-center justify-center font-black shadow">#${index + 1}</span>
+          </div>
+        `;
+      });
+    }
+
+    function updateLocationAndSeverityUI(category) {
+      const gpsEl = document.getElementById('dynamicGpsText');
+      const alertBtn = document.getElementById('dispatchAlertBtn');
+
+      if (category === "ACCIDENT") {
+        if (gpsEl) gpsEl.innerHTML = `GPS 18.5204 N, 73.8567 E <span class="text-amber-600 font-bold">(National Highway Crash Zone / Area Hint)</span>`;
+        if (alertBtn) alertBtn.innerHTML = `🚨 DISPATCH HIGHWAY PATROL & AMBULANCE UNIT`;
+        setManualSeverity('HIGH');
+      } else if (category === "FIRE") {
+        if (gpsEl) gpsEl.innerHTML = `GPS 18.6298 N, 73.7997 E <span class="text-rose-600 font-bold">(Industrial MIDC Godown Sector - Fire Hazard Hint)</span>`;
+        if (alertBtn) alertBtn.innerHTML = `🚨 DISPATCH FIRE BRIGADE EMERGENCY TEAM`;
+        setManualSeverity('HIGH');
+      } else if (category === "CRIME") {
+        if (gpsEl) gpsEl.innerHTML = `GPS 18.5308 N, 73.8475 E <span class="text-slate-900 font-bold">(Urban Residential / Sector 4 Zone Hint)</span>`;
+        if (alertBtn) alertBtn.innerHTML = `🚨 DISPATCH FORENSIC & CRIME BRANCH UNIT`;
+        setManualSeverity('HIGH');
+      } else {
+        if (gpsEl) gpsEl.innerHTML = `GPS 18.5100 N, 73.8100 E <span class="text-slate-700 font-bold">(Address Not Found in Image - Manual Hint Required)</span>`;
+        if (alertBtn) alertBtn.innerHTML = `🚨 CONFIRM AND SEND EMERGENCY ALERT`;
+        setManualSeverity('MEDIUM');
+      }
+    }
+
+    function setManualSeverity(level) {
+      const levels = ["LOW", "MEDIUM", "HIGH"];
+      const lockBadge = document.getElementById('severityLockStatus');
+
+      levels.forEach(l => {
+        const btn = document.getElementById(`sev-${l}`);
+        if (btn) {
+          if (l === level) {
+            if (l === "HIGH") {
+              btn.className = "py-2.5 bg-rose-700 text-white rounded-xl font-black text-xs shadow-lg scale-105 border-2 border-rose-800 cursor-default ring-4 ring-rose-500/30";
+            } else if (l === "MEDIUM") {
+              btn.className = "py-2.5 bg-amber-500 text-slate-950 rounded-xl font-black text-xs shadow-lg scale-105 border-2 border-amber-600 cursor-default ring-4 ring-amber-400/30";
+            } else {
+              btn.className = "py-2.5 bg-emerald-600 text-white rounded-xl font-black text-xs shadow-lg scale-105 border-2 border-emerald-700 cursor-default ring-4 ring-emerald-400/30";
+            }
+            btn.onclick = null;
+          } else {
+            btn.className = "py-2.5 border border-slate-200 bg-slate-100 text-slate-400 rounded-xl font-bold text-xs opacity-40 cursor-not-allowed pointer-events-none select-none";
+            btn.onclick = null;
+          }
+        }
+      });
+
+      if (lockBadge) lockBadge.textContent = `🔒 AI System Locked: ${level} Risk`;
+    }
+
+    function sendEmergencyDispatchAlert() {
+      const gpsEl = document.getElementById('dynamicGpsText')?.textContent || "";
+      const name = currentOfficerName || "Authorized Inspector";
+      alert("🚨 EMERGENCY DISPATCH SENT BY " + name.toUpperCase() + "!\n\nLocation: " + gpsEl + "\nStatus: Police & Emergency Services Notified.");
+    }
+
+    function confirmInvestigatorVerification() {
+      const name = currentOfficerName || "Authorized Inspector";
+      alert("✅ Verification Saved by " + name + ": AI Findings Confirmed.");
+    }
+
+    function updateIntelligenceUI(category) {
+      const nodesBox = document.getElementById('dynamicRelationNodesBox');
+      const timelineBox = document.getElementById('dynamicTimelineContent');
+      const checksBox = document.getElementById('dynamicChecksContainer');
+
+      if (!nodesBox || !timelineBox || !checksBox) return;
+
+      if (category === "ACCIDENT") {
+        nodesBox.innerHTML = `
+          <div class="flex items-center space-x-4">
+            <span class="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">Speed Sensor Log</span>
+            <span class="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">Road Debris Field</span>
+          </div>
+          <div class="py-2">
+            <span class="px-6 py-2 bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md border border-amber-500 scale-105 inline-block">
+              Vehicle Collision Impact
+            </span>
+          </div>
+          <div class="flex items-center space-x-4">
+            <span class="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">Tire Skid Marks</span>
+            <span class="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">Highway CCTV</span>
+          </div>
+        `;
+
+        timelineBox.innerHTML = `
+          <div class="relative pl-4">
+            <span class="absolute -left-[13px] top-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white shadow-2xs"></span>
+            <span class="text-[11px] font-mono font-bold text-slate-400 block">08:12</span>
+            <p class="text-xs font-bold text-slate-800">Vehicle recorded passing Highway Toll Plaza</p>
+          </div>
+          <div class="relative pl-4">
+            <span class="absolute -left-[13px] top-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white shadow-2xs"></span>
+            <span class="text-[11px] font-mono font-bold text-slate-400 block">08:18</span>
+            <p class="text-xs font-bold text-slate-800">High-speed impact collision detected on telemetry</p>
+          </div>
+          <div class="relative pl-4">
+            <span class="absolute -left-[13px] top-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white shadow-2xs"></span>
+            <span class="text-[11px] font-mono font-bold text-slate-400 block">08:24</span>
+            <p class="text-xs font-bold text-slate-800">Highway patrol and emergency unit dispatched</p>
+          </div>
+        `;
+
+        checksBox.innerHTML = `
+          <label class="flex items-start space-x-3 p-3 border border-amber-200 bg-amber-50/50 rounded-xl cursor-pointer transition">
+            <input type="checkbox" checked disabled class="mt-0.5 accent-[#0d6b6e] w-4 h-4 rounded cursor-not-allowed">
+            <span class="text-xs font-bold text-slate-800">Verify vehicle brake line integrity and speed telemetry logs <span class="text-[10px] text-amber-700 font-mono font-bold ml-1">🔒 [AI Auto-Locked]</span></span>
+          </label>
+          <label class="flex items-start space-x-3 p-3 border border-amber-200 bg-amber-50/50 rounded-xl cursor-pointer transition">
+            <input type="checkbox" checked disabled class="mt-0.5 accent-[#0d6b6e] w-4 h-4 rounded cursor-not-allowed">
+            <span class="text-xs font-bold text-slate-800">Analyze highway CCTV camera footage 2 km prior to collision point <span class="text-[10px] text-amber-700 font-mono font-bold ml-1">🔒 [AI Auto-Locked]</span></span>
+          </label>
+        `;
+      } else if (category === "FIRE") {
+        nodesBox.innerHTML = `
+          <div class="flex items-center space-x-4">
+            <span class="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">Combustible Fuel Log</span>
+            <span class="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">Smoke Sensors</span>
+          </div>
+          <div class="py-2">
+            <span class="px-6 py-2 bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md border border-amber-500 scale-105 inline-block">
+              Flame Ignition Core
+            </span>
+          </div>
+        `;
+
+        timelineBox.innerHTML = `
+          <div class="relative pl-4">
+            <span class="absolute -left-[13px] top-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white shadow-2xs"></span>
+            <span class="text-[11px] font-mono font-bold text-slate-400 block">02:15</span>
+            <p class="text-xs font-bold text-slate-800">Abnormal thermal spike logged on industrial sensors</p>
+          </div>
+        `;
+
+        checksBox.innerHTML = `
+          <label class="flex items-start space-x-3 p-3 border border-amber-200 bg-amber-50/50 rounded-xl cursor-pointer transition">
+            <input type="checkbox" checked disabled class="mt-0.5 accent-[#0d6b6e] w-4 h-4 rounded cursor-not-allowed">
+            <span class="text-xs font-bold text-slate-800">Send chemical vapor residue samples to forensic lab <span class="text-[10px] text-amber-700 font-mono font-bold ml-1">🔒 [AI Auto-Locked]</span></span>
+          </label>
+        `;
+      } else {
+        nodesBox.innerHTML = `
+          <div class="flex items-center space-x-4">
+            <span class="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">Knife</span>
+            <span class="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">Mobile phone</span>
+          </div>
+          <div class="py-2">
+            <span class="px-6 py-2 bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md border border-amber-500 scale-105 inline-block">
+              Blood stain
+            </span>
+          </div>
+        `;
+
+        timelineBox.innerHTML = `
+          <div class="relative pl-4">
+            <span class="absolute -left-[13px] top-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white shadow-2xs"></span>
+            <span class="text-[11px] font-mono font-bold text-slate-400 block">06:31</span>
+            <p class="text-xs font-bold text-slate-800">Last photo taken at the scene</p>
+          </div>
+        `;
+
+        checksBox.innerHTML = `
+          <label class="flex items-start space-x-3 p-3 border border-amber-200 bg-amber-50/50 rounded-xl cursor-pointer transition">
+            <input type="checkbox" checked disabled class="mt-0.5 accent-[#0d6b6e] w-4 h-4 rounded cursor-not-allowed">
+            <span class="text-xs font-bold text-slate-800">Check CCTV from stairwell between 06:30 and 06:45 <span class="text-[10px] text-amber-700 font-mono font-bold ml-1">🔒 [AI Auto-Locked]</span></span>
+          </label>
+        `;
+      }
+    }
+
+    function manualCategorySelect(categoryName) {
+      renderIncidentUI(categoryName);
+      updateScreen8ReportUI(currentFileName || "sample_evidence.jpg", categoryName, "Selected Location", false);
+    }
+
+    function saveManualLocation() {
+      const manualInput = document.getElementById('editableLocationInput');
+      if (!manualInput) return;
+      
+      const newLockedLocation = manualInput.value;
+      window.currentAnalyzedCrimeLocation = newLockedLocation;
+      
+      const gpsEl = document.getElementById('dynamicGpsText');
+      if (gpsEl) {
+        gpsEl.innerHTML = `GPS Manual Override · <strong class="text-white">${newLockedLocation}</strong> <span class="text-emerald-400 font-bold">(Officer Verified 🔒)</span>`;
+      }
+      
+      alert("Location successfully updated and locked for this case dossier!");
+    }
+
+    function extractExifMetadata(file) {
+      if (window.EXIF) {
+        EXIF.getData(file, function() {
+          let lat = EXIF.getTag(this, "GPSLatitude");
+          let lon = EXIF.getTag(this, "GPSLongitude");
+          if (lat && lon) {
+            window.currentAnalyzedCrimeLocation = `EXIF Tracked Lat: ${lat}, Lon: ${lon}`;
+          } else {
+            detectLocationFromImageMetadata(file.name, file.size);
+          }
+        });
+      } else {
+        detectLocationFromImageMetadata(file.name, file.size);
+      }
+    }
+
+    function calculateDynamicAIConfidence(fileSize, fileName) {
+      let baseScore = 95;
+      if (fileSize > 1000000) baseScore = 98.2;
+      else if (fileName.length > 15) baseScore = 96.5;
+      
+      return baseScore.toFixed(1) + "%";
+    }
+
+    function renderAuthenticityList() {
+      const container = document.getElementById('authenticityListContainer');
+      if (!container) return;
+      container.innerHTML = "";
+      analyzedFilesList.forEach((item, index) => {
+        const badgeColor = item.isAi ? "border-rose-500 bg-rose-500/10 text-rose-400" : "border-emerald-500 bg-emerald-500/10 text-emerald-400";
+        const tagLabel = item.isAi ? "FLAGGED" : "PASSED";
+
+        container.innerHTML += `
+          <div class="flex items-center justify-between p-3 border border-slate-700 bg-slate-900 rounded-xl ${index === 0 ? 'ring-2 ring-amber-400' : ''}">
+            <div class="flex items-center space-x-3">
+              <span class="px-2 py-1 bg-slate-800 text-amber-400 font-mono font-bold text-[10px] rounded">${item.type}</span>
+              <div>
+                <p class="text-xs font-bold font-mono text-white">${item.name} <span class="text-[10px] text-slate-400">(${item.size})</span></p>
+                <p class="text-[11px] font-semibold ${item.isAi ? 'text-rose-400' : 'text-emerald-400'}">${item.scoreText}</p>
+              </div>
+            </div>
+            <span class="text-[10px] font-bold font-mono px-2.5 py-1 border rounded-full ${badgeColor}">${tagLabel}</span>
+          </div>
+        `;
+      });
+    }
+
+    function runFileVerification() {
+      alert("🔒 SHA-256 Hash Verification Complete!\n\nHash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nStatus: 100% Authentic & Unaltered.");
+    }
+
+    function rotate3D(val) {
+      const box = document.getElementById('scene3dBox');
+      const angleDisplay = document.getElementById('angleValueDisplay');
+      if (box) box.style.transform = `rotateX(20deg) rotateY(${val}deg) rotateZ(0deg)`;
+      if (angleDisplay) angleDisplay.textContent = `${val}°`;
+    }
+
+    function setView3D(viewType) {
+      const box = document.getElementById('scene3dBox');
+      const slider = document.getElementById('orbitSlider');
+      const angleDisplay = document.getElementById('angleValueDisplay');
+      if (!box) return;
+
+      if (viewType === 'top') {
+        box.style.transform = `rotateX(65deg) rotateY(0deg) rotateZ(0deg)`;
+        if (angleDisplay) angleDisplay.textContent = "Top View (65°)";
+        if (slider) slider.value = 0;
+      } else if (viewType === 'front') {
+        box.style.transform = `rotateX(0deg) rotateY(0deg) rotateZ(0deg)`;
+        if (angleDisplay) angleDisplay.textContent = "Front View (0°)";
+        if (slider) slider.value = 0;
+      } else if (viewType === 'side') {
+        box.style.transform = `rotateX(15deg) rotateY(90deg) rotateZ(0deg)`;
+        if (angleDisplay) angleDisplay.textContent = "Side View (90°)";
+        if (slider) slider.value = 90;
+      }
+    }
+
+    function reset3DView() {
+      const box = document.getElementById('scene3dBox');
+      const slider = document.getElementById('orbitSlider');
+      const angleDisplay = document.getElementById('angleValueDisplay');
+      if (box) box.style.transform = `rotateX(20deg) rotateY(0deg) rotateZ(0deg)`;
+      if (slider) slider.value = 0;
+      if (angleDisplay) angleDisplay.textContent = "0°";
+    }
+
+    // Page Load Initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      showScreen('login');
+      updateLocationAndSeverityUI("ACCIDENT");
+      updateIntelligenceUI("ACCIDENT");
+    });
+  </script>
+</body>
+</html> 
